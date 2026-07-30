@@ -6,26 +6,29 @@
     <title>ヒーローVS大怪獣 バトルアリーナ</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0F172A; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; padding: 16px; min-height: 100vh; }
+        body { background: #0F172A; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; padding: 12px; min-height: 100vh; }
+        
         .container { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; }
         
-        .header { background: #020617; padding: 12px 16px; border-radius: 12px; border: 1px solid #1E293B; display: flex; justify-content: space-between; align-items: center; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #1E293B; padding: 12px 16px; border-radius: 12px; border: 1px solid #334155; }
         .title { font-size: 16px; font-weight: bold; color: #38BDF8; }
         .round { font-size: 14px; font-weight: bold; color: #A855F7; }
+
+        .card { background: #1E293B; border-radius: 16px; padding: 14px; border: 2px solid #334155; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+        .card-enemy { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
+        .card-player { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+
+        .card-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+        .label { font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .name { font-size: 17px; font-weight: bold; color: #FFFFFF; }
         
-        .card { background: #1E293B; border-radius: 16px; padding: 14px; border: 2px solid #334155; display: flex; align-items: center; justify-content: space-between; }
-        .card-enemy { border-color: #A855F7; }
-        .card-player { border-color: #38BDF8; }
-        .card-info { flex: 1; }
-        .label { font-size: 11px; font-weight: bold; }
-        .name { font-size: 18px; font-weight: bold; margin-bottom: 6px; }
-        
-        .hp-bar-bg { background: #0F172A; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 4px; }
-        .hp-bar-fill { background: #22C55E; height: 100%; width: 100%; transition: width 0.3s; }
+        .hp-bar-bg { background: #0F172A; height: 10px; border-radius: 5px; width: 100%; overflow: hidden; margin-top: 4px; border: 1px solid #334155; }
+        .hp-bar-fill { height: 100%; width: 100%; transition: width 0.3s ease; background: #22C55E; }
         .hp-enemy { background: #F43F5E; }
-        .hp-text { font-size: 13px; font-weight: bold; }
+        .hp-text { font-size: 12px; font-weight: bold; }
         
-        .char-avatar { font-size: 48px; width: 64px; text-align: center; }
+        .char-avatar { font-size: 42px; width: 56px; text-align: center; }
+
         .vs-badge { text-align: center; font-size: 12px; font-weight: bold; color: #64748B; letter-spacing: 2px; }
 
         .time-select-group { display: flex; gap: 10px; margin-bottom: 8px; }
@@ -33,20 +36,20 @@
         .time-btn.active { background: #38BDF8; color: #0F172A; border-color: #38BDF8; }
 
         .btn { background: #38BDF8; color: #0F172A; font-weight: bold; font-size: 16px; border: none; padding: 14px; border-radius: 12px; cursor: pointer; transition: transform 0.1s, background 0.2s; width: 100%; text-align: center; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3); }
-        .btn:active { transform: scale(0.97); }
+        .btn:active { transform: scale(0.96); }
         .btn-attack { background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%); color: white; box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4); font-size: 18px; }
         
-        .control-card { background: #1E293B; border-radius: 16px; padding: 16px; border: 1px solid #334155; text-align: center; display: flex; flex-direction: column; gap: 12px; }
-        .status-msg { font-size: 16px; font-weight: bold; color: #F8FAFC; }
-        .timer-display { font-size: 24px; font-weight: 900; color: #38BDF8; margin-top: 4px; }
+        .control-card { background: #1E293B; border-radius: 16px; padding: 16px; border: 1px solid #334155; text-align: center; display: flex; flex-direction: column; gap: 10px; }
+        .status-msg { font-size: 15px; font-weight: bold; color: #F8FAFC; }
+        .timer-display { font-size: 22px; font-weight: 900; color: #38BDF8; margin-top: 2px; }
 
-        .logs-box { background: #020617; border-radius: 10px; padding: 10px; max-height: 120px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #CBD5E1; display: flex; flex-direction: column; gap: 4px; border: 1px solid #1E293B; }
+        .logs-box { background: #020617; border-radius: 10px; padding: 10px; max-height: 110px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #CBD5E1; display: flex; flex-direction: column; gap: 4px; border: 1px solid #1E293B; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="title">🦸‍♂️ HERO VS KAIJU</div>
+            <div class="title">🦸‍♂️ サイバーヒーロー VS 暗黒龍王</div>
             <div id="round-text" class="round">ROUND 1</div>
         </div>
 
@@ -58,7 +61,7 @@
                 <div class="hp-bar-bg"><div id="enemy-hp-bar" class="hp-bar-fill hp-enemy"></div></div>
                 <div id="enemy-hp-text" class="hp-text" style="color: #F43F5E;">HP: 300 / 300</div>
             </div>
-            <div class="char-avatar">🦖</div>
+            <div class="char-avatar">🐉</div>
         </div>
 
         <div class="vs-badge">🔥 HERO VS KAIJU 🔥</div>
@@ -126,16 +129,16 @@
         function updateUI() {
             document.getElementById("round-text").innerText = `ROUND ${round}`;
             document.getElementById("player-hp-bar").style.width = (pHP / 300 * 100) + "%";
-            document.getElementById("enemy-hp-bar").style.width = (eHP / 300 * 100) + "%";
             document.getElementById("player-hp-text").innerText = `HP: ${pHP} / 300`;
+            document.getElementById("enemy-hp-bar").style.width = (eHP / 300 * 100) + "%";
             document.getElementById("enemy-hp-text").innerText = `HP: ${eHP} / 300`;
         }
 
         function addLog(tag, msg) {
-            const logsBox = document.getElementById("logs");
+            const box = document.getElementById("logs");
             const div = document.createElement("div");
             div.innerText = `[${tag}] ${msg}`;
-            logsBox.insertBefore(div, logsBox.firstChild);
+            box.prepend(div);
         }
 
         function handleAction() {
