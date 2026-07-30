@@ -1,5 +1,5 @@
 # =========================================================
-# ヒーロー VS 大怪獣 バトルアリーナ (app.py)
+# ヒーローVS大怪獣 バトルアリーナ (app.py)
 # 
 # 1. pip install streamlit
 # 2. streamlit run app.py
@@ -16,7 +16,7 @@ class RobotBattleCore:
         self.enemy_hp = 300
         self.max_enemy_hp = 300
 
-        self.selected_time = 10  # 10秒 または 20秒
+        self.selected_time = 10  # 10 or 20 seconds
         self.round_count = 1
         self.phase = "READY"  # READY, PLAYER_ATTACK, PLAYER_RESULT, ENEMY_RESULT, GAME_OVER
         self.tap_count = 0
@@ -62,7 +62,7 @@ class RobotBattleCore:
 def main():
     st.set_page_config(page_title="ヒーローVS大怪獣 バトルアリーナ", page_icon="🦸‍♂️", layout="centered")
 
-    # Custom UI CSS (SyntaxErrorを防ぐため普通の複数行文字列)
+    # Custom Cyberpunk / Dark UI CSS
     st.markdown('''
     <style>
         .stApp { background-color: #0F172A !important; color: #F8FAFC; }
@@ -107,7 +107,7 @@ def main():
 
     game = st.session_state.game
 
-    # タイトルバー
+    # Title Bar
     st.markdown(f'''
     <div class="title-bar">
         <span style="font-size: 20px; font-weight: bold; color: #38BDF8;">🦸‍♂️ HERO VS KAIJU BATTLE</span>
@@ -115,7 +115,7 @@ def main():
     </div>
     ''', unsafe_allow_html=True)
 
-    # キャラクターカード表示エリア
+    # Robot Cards Area (Enemy Kaiju Top, Player Hero Bottom)
     col_e1, col_e2 = st.columns([3, 1])
     with col_e1:
         st.markdown(f'''
@@ -139,7 +139,7 @@ def main():
         <div class="robo-card player-card">
             <div>
                 <div style="font-size: 12px; color: #38BDF8; font-weight: bold;">マイヒーロー</div>
-                <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">超ヒーロー・ブレイバー</div>
+                <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">サイバーヒーロー・ブレイバー</div>
                 <div class="hp-text-player">HP {game.player_hp} / {game.max_player_hp}</div>
             </div>
         </div>
@@ -150,16 +150,10 @@ def main():
 
     st.divider()
 
-    # ゲームフェーズに応じた操作エリア
+    # Dynamic Battle Action Controls
     if game.phase == "READY":
         st.subheader("⏱️ 対戦時間を選んでバトルスタート！")
-        selected_time = st.radio(
-            "制限時間を選択してください",
-            [10, 20],
-            index=0 if game.selected_time == 10 else 1,
-            format_func=lambda x: f"⚡ {x}秒コース",
-            horizontal=True
-        )
+        selected_time = st.radio("制限時間を選択してください", [10, 20], index=0 if game.selected_time == 10 else 1, format_func=lambda x: f"⚡ {x}秒コース", horizontal=True)
         game.selected_time = selected_time
 
         if st.button(f"🚀 バトルスタート ({game.selected_time}秒連打)", use_container_width=True, type="primary"):
