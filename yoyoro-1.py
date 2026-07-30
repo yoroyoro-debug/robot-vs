@@ -1,8 +1,8 @@
 # =========================================================
-# Robot Battle Game - Streamlit Cyber Edition (app.py)
+# ヒーロー VS 大怪獣 バトルアリーナ (app.py)
 # 
 # 1. pip install streamlit
-# 2. streamlit run yoyoro-1.py
+# 2. streamlit run app.py
 # =========================================================
 
 import streamlit as st
@@ -16,12 +16,13 @@ class RobotBattleCore:
         self.enemy_hp = 300
         self.max_enemy_hp = 300
 
+        self.selected_time = 10  # 10秒 または 20秒
         self.round_count = 1
         self.phase = "READY"  # READY, PLAYER_ATTACK, PLAYER_RESULT, ENEMY_RESULT, GAME_OVER
         self.tap_count = 0
         self.last_player_damage = 0
         self.last_enemy_damage = 0
-        self.battle_logs = ["ゲーム準備完了。対戦を開始してください。"]
+        self.battle_logs = ["バトル準備完了！ ヒーローVS大怪獣の対戦を開始してください。"]
         self.roulette_numbers = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180]
 
     def add_log(self, tag, msg):
@@ -34,7 +35,7 @@ class RobotBattleCore:
     def finish_player_attack(self):
         self.last_player_damage = self.tap_count * 2
         self.enemy_hp = max(0, self.enemy_hp - self.last_player_damage)
-        self.add_log("Player", f"ROUND {self.round_count}: {self.tap_count}連打！ {self.last_player_damage} ダメージ！")
+        self.add_log("Hero", f"ROUND {self.round_count}: {self.selected_time}秒間で {self.tap_count}連打！ 大怪獣に {self.last_player_damage} ダメージ！")
         
         if self.enemy_hp <= 0:
             self.phase = "GAME_OVER"
@@ -44,7 +45,7 @@ class RobotBattleCore:
     def execute_enemy_turn(self):
         self.last_enemy_damage = random.choice(self.roulette_numbers)
         self.player_hp = max(0, self.player_hp - self.last_enemy_damage)
-        self.add_log("Enemy", f"ROUND {self.round_count}: 敵ルーレット [{self.last_enemy_damage}]！ {self.last_enemy_damage} 被ダメージ！")
+        self.add_log("Kaiju", f"ROUND {self.round_count}: 大怪獣の攻撃 [{self.last_enemy_damage}]！ {self.last_enemy_damage} ダメージを受けた！")
 
         if self.player_hp <= 0:
             self.phase = "GAME_OVER"
@@ -53,13 +54,15 @@ class RobotBattleCore:
             self.round_count += 1
 
     def reset_game(self):
+        time_limit = self.selected_time
         self.__init__()
+        self.selected_time = time_limit
 
 # --- 2. Streamlit Custom Styled UI ---
 def main():
-    st.set_page_config(page_title="ロボットバトルアリーナ", page_icon="⚡", layout="centered")
+    st.set_page_config(page_title="ヒーローVS大怪獣 バトルアリーナ", page_icon="🦸‍♂️", layout="centered")
 
-    # Custom Cyberpunk / Dark UI CSS (通常文字列にしてf-stringのCSSエラーを回避)
+    # Custom UI CSS (SyntaxErrorを防ぐため普通の複数行文字列)
     st.markdown('''
     <style>
         .stApp { background-color: #0F172A !important; color: #F8FAFC; }
@@ -70,6 +73,9 @@ def main():
             border: 2px solid #334155;
             margin-bottom: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         .enemy-card { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
         .player-card { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
@@ -92,6 +98,7 @@ def main():
             padding: 12px 24px !important;
             transition: all 0.2s !important;
         }
+        .char-icon { font-size: 50px; text-align: center; }
     </style>
     ''', unsafe_allow_html=True)
 
@@ -100,55 +107,69 @@ def main():
 
     game = st.session_state.game
 
-    # Title Bar
+    # タイトルバー
     st.markdown(f'''
     <div class="title-bar">
-        <span style="font-size: 20px; font-weight: bold; color: #38BDF8;">🤖 ROBO BATTLE ARENA</span>
+        <span style="font-size: 20px; font-weight: bold; color: #38BDF8;">🦸‍♂️ HERO VS KAIJU BATTLE</span>
         <span style="font-size: 16px; font-weight: bold; color: #A855F7;">ROUND {game.round_count}</span>
     </div>
     ''', unsafe_allow_html=True)
 
-    # Robot Cards Area (Enemy Top, Player Bottom)
+    # キャラクターカード表示エリア
     col_e1, col_e2 = st.columns([3, 1])
     with col_e1:
         st.markdown(f'''
         <div class="robo-card enemy-card">
-            <div style="font-size: 12px; color: #A855F7; font-weight: bold;">ライバルロボ</div>
-            <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">ブラックライトニング</div>
-            <div class="hp-text-enemy">HP {game.enemy_hp} / {game.max_enemy_hp}</div>
+            <div>
+                <div style="font-size: 12px; color: #A855F7; font-weight: bold;">だいかいじゅう</div>
+                <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">大怪獣 ギガガメディス</div>
+                <div class="hp-text-enemy">HP {game.enemy_hp} / {game.max_enemy_hp}</div>
+            </div>
         </div>
         ''', unsafe_allow_html=True)
         st.progress(game.enemy_hp / game.max_enemy_hp)
     with col_e2:
-        st.image("https://api.iconify.design/game-icons:robot-antennas.svg?color=%23a855f7", width=80)
+        st.markdown('<div class="char-icon">🦖</div>', unsafe_allow_html=True)
 
-    st.markdown("<div style='text-align: center; font-weight: bold; color: #64748B; margin: 8px 0;'>⚡ VS BATTLE ⚡</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; font-weight: bold; color: #64748B; margin: 8px 0;'>🔥 HERO VS KAIJU 🔥</div>", unsafe_allow_html=True)
 
     col_p1, col_p2 = st.columns([3, 1])
     with col_p1:
         st.markdown(f'''
         <div class="robo-card player-card">
-            <div style="font-size: 12px; color: #38BDF8; font-weight: bold;">マイロボ</div>
-            <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">ドラコニック インパクト</div>
-            <div class="hp-text-player">HP {game.player_hp} / {game.max_player_hp}</div>
+            <div>
+                <div style="font-size: 12px; color: #38BDF8; font-weight: bold;">マイヒーロー</div>
+                <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">超ヒーロー・ブレイバー</div>
+                <div class="hp-text-player">HP {game.player_hp} / {game.max_player_hp}</div>
+            </div>
         </div>
         ''', unsafe_allow_html=True)
         st.progress(game.player_hp / game.max_player_hp)
     with col_p2:
-        st.image("https://api.iconify.design/game-icons:mech-golem.svg?color=%2338bdf8", width=80)
+        st.markdown('<div class="char-icon">🦸‍♂️</div>', unsafe_allow_html=True)
 
     st.divider()
 
-    # Dynamic Battle Action Controls
+    # ゲームフェーズに応じた操作エリア
     if game.phase == "READY":
-        st.info("⚔️ バトル準備完了！下のボタンを押してバトルを開始しよう！")
-        if st.button("🚀 バトルスタート！", use_container_width=True, type="primary"):
+        st.subheader("⏱️ 対戦時間を選んでバトルスタート！")
+        selected_time = st.radio(
+            "制限時間を選択してください",
+            [10, 20],
+            index=0 if game.selected_time == 10 else 1,
+            format_func=lambda x: f"⚡ {x}秒コース",
+            horizontal=True
+        )
+        game.selected_time = selected_time
+
+        if st.button(f"🚀 バトルスタート ({game.selected_time}秒連打)", use_container_width=True, type="primary"):
             game.phase = "PLAYER_ATTACK"
+            game.tap_count = 0
             st.rerun()
 
     elif game.phase == "PLAYER_ATTACK":
-        st.warning("🔥 10秒間連打アタック！ ボタンを押しまくれ！")
-        if st.button("⚡ 限界突破アタック！ (+1)", use_container_width=True):
+        st.warning(f"🔥 {game.selected_time}秒間 ヒーロー連打アタック！ ボタンを押しまくれ！")
+        if st.button("💥 ヒーロービームアタック！ (+1)", use_container_width=True):
             game.tap_attack()
 
         st.metric("現在の連打数", f"{game.tap_count} 回", f"与ダメージ: {game.tap_count * 2}")
@@ -159,13 +180,13 @@ def main():
 
     elif game.phase == "PLAYER_RESULT":
         st.success(f"💥 攻撃完了！ {game.last_player_damage} ダメージを与えた！")
-        if st.button("次へ (敵のターン)", use_container_width=True):
+        if st.button("次へ (大怪獣のターン)", use_container_width=True):
             game.execute_enemy_turn()
             st.rerun()
 
     elif game.phase == "ENEMY_RESULT":
-        st.error(f"⚡ 敵のルーレット攻撃！ {game.last_enemy_damage} ダメージを受けた！")
-        if st.button("次へ (自分のターン)", use_container_width=True):
+        st.error(f"⚡ 大怪獣のこうげき！ {game.last_enemy_damage} ダメージを受けた！")
+        if st.button("次へ (ヒーローのターン)", use_container_width=True):
             game.phase = "PLAYER_ATTACK"
             game.tap_count = 0
             st.rerun()
@@ -173,9 +194,9 @@ def main():
     elif game.phase == "GAME_OVER":
         if game.player_hp > 0:
             st.balloons()
-            st.success("🎉 WINNER! 敵ロボ『ブラックライトニング』を撃破！")
+            st.success("🎉 WINNER! 大怪獣『ギガガメディス』を撃退した！")
         else:
-            st.error("💥 GAME OVER... ドラコニック インパクト大破")
+            st.error("💥 GAME OVER... 超ヒーロー・ブレイバー倒れる")
 
         if st.button("🔄 もう一度対戦する", use_container_width=True, type="primary"):
             game.reset_game()
