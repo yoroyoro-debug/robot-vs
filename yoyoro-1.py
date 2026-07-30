@@ -1,267 +1,227 @@
-import streamlit as st
-import streamlit.components.v1 as components
+package com.example.game
 
-# ページ設定
-st.set_page_config(
-    page_title="サイバーヒーローVS暗黒龍王",
-    page_icon="🦸‍♂️",
-    layout="centered"
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlin.random.Random
+
+enum class BattlePhase {
+    READY,
+    PLAYER_ATTACK,
+    PLAYER_RESULT,
+    ENEMY_ATTACK,
+    ENEMY_RESULT,
+    GAME_OVER
+}
+
+data class BattleLog(
+    val round: Int,
+    val message: String,
+    val isPlayerAction: Boolean
 )
 
-# 完全作動するHTML/CSS/JS埋め込みコード
-html_code = """
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ヒーローVS大怪獣 バトルアリーナ</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0F172A; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; padding: 12px; min-height: 100vh; }
-        
-        .container { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; }
-        
-        .header { display: flex; justify-content: space-between; align-items: center; background: #1E293B; padding: 12px 16px; border-radius: 12px; border: 1px solid #334155; }
-        .title { font-size: 16px; font-weight: bold; color: #38BDF8; }
-        .round { font-size: 14px; font-weight: bold; color: #A855F7; }
+data class RobotBattleUiState(
+    val phase: BattlePhase = BattlePhase.READY,
+    val playerHp: Int = 300,
+    val maxPlayerHp: Int = 300,
+    val enemyHp: Int = 300,
+    val maxEnemyHp: Int = 300,
+    val selectedTimeLimit: Int = 10, // 10 or 20 seconds
+    val timerSecondsLeft: Float = 10.0f,
+    val tapCount: Int = 0,
+    val lastPlayerDamage: Int = 0,
+    val currentRouletteIndex: Int = 0,
+    val selectedRouletteValue: Int = 0,
+    val isRouletteSpinning: Boolean = false,
+    val lastEnemyDamage: Int = 0,
+    val roundCount: Int = 1,
+    val winner: String? = null, // "PLAYER" or "ENEMY"
+    val battleLogs: List<BattleLog> = emptyList(),
+    val totalPlayerTapsInMatch: Int = 0,
+    val totalPlayerDamageDealt: Int = 0
+)
 
-        .card { background: #1E293B; border-radius: 16px; padding: 14px; border: 2px solid #334155; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
-        .card-enemy { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
-        .card-player { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+class RobotBattleViewModel : ViewModel() {
 
-        .card-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-        .label { font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        .name { font-size: 17px; font-weight: bold; color: #FFFFFF; }
-        
-        .hp-bar-bg { background: #0F172A; height: 10px; border-radius: 5px; width: 100%; overflow: hidden; margin-top: 4px; border: 1px solid #334155; }
-        .hp-bar-fill { height: 100%; width: 100%; transition: width 0.3s ease; background: #22C55E; }
-        .hp-enemy { background: #F43F5E; }
-        .hp-text { font-size: 12px; font-weight: bold; }
-        
-        .char-avatar { font-size: 42px; width: 56px; text-align: center; }
+    private val _uiState = MutableStateFlow(RobotBattleUiState())
+    val uiState: StateFlow<RobotBattleUiState> = _uiState.asStateFlow()
 
-        .vs-badge { text-align: center; font-size: 12px; font-weight: bold; color: #64748B; letter-spacing: 2px; }
+    val rouletteNumbers = listOf(0, 20, 40, 60, 80, 100, 120, 140, 160, 180)
 
-        .time-select-group { display: flex; gap: 10px; margin-bottom: 8px; }
-        .time-btn { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid #334155; background: #0F172A; color: #94A3B8; font-weight: bold; cursor: pointer; }
-        .time-btn.active { background: #38BDF8; color: #0F172A; border-color: #38BDF8; }
+    private var timerJob: Job? = null
+    private var rouletteJob: Job? = null
 
-        .btn { background: #38BDF8; color: #0F172A; font-weight: bold; font-size: 16px; border: none; padding: 14px; border-radius: 12px; cursor: pointer; transition: transform 0.1s, background 0.2s; width: 100%; text-align: center; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3); }
-        .btn:active { transform: scale(0.96); }
-        .btn-attack { background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%); color: white; box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4); font-size: 18px; }
-        
-        .control-card { background: #1E293B; border-radius: 16px; padding: 16px; border: 1px solid #334155; text-align: center; display: flex; flex-direction: column; gap: 10px; }
-        .status-msg { font-size: 15px; font-weight: bold; color: #F8FAFC; }
-        .timer-display { font-size: 22px; font-weight: 900; color: #38BDF8; margin-top: 2px; }
+    fun setTimeLimit(seconds: Int) {
+        if (_uiState.value.phase == BattlePhase.READY) {
+            _uiState.update { it.copy(selectedTimeLimit = seconds, timerSecondsLeft = seconds.toFloat()) }
+        }
+    }
 
-        .logs-box { background: #020617; border-radius: 10px; padding: 10px; max-height: 110px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #CBD5E1; display: flex; flex-direction: column; gap: 4px; border: 1px solid #1E293B; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="title">🦸‍♂️ サイバーヒーロー VS 暗黒龍王</div>
-            <div id="round-text" class="round">ROUND 1</div>
-        </div>
+    fun startBattle() {
+        timerJob?.cancel()
+        rouletteJob?.cancel()
+        _uiState.update {
+            RobotBattleUiState(
+                phase = BattlePhase.READY,
+                playerHp = 300,
+                enemyHp = 300,
+                selectedTimeLimit = it.selectedTimeLimit,
+                timerSecondsLeft = it.selectedTimeLimit.toFloat()
+            )
+        }
+    }
 
-        <!-- Enemy Kaiju Card -->
-        <div class="card card-enemy">
-            <div class="card-info">
-                <div class="label" style="color: #A855F7;">だいかいじゅう</div>
-                <div class="name">暗黒龍王 ギガガメディス</div>
-                <div class="hp-bar-bg"><div id="enemy-hp-bar" class="hp-bar-fill hp-enemy"></div></div>
-                <div id="enemy-hp-text" class="hp-text" style="color: #F43F5E;">HP: 300 / 300</div>
-            </div>
-            <div class="char-avatar">🐉</div>
-        </div>
+    fun startPlayerTurn() {
+        if (_uiState.value.phase != BattlePhase.READY && _uiState.value.phase != BattlePhase.ENEMY_RESULT) return
 
-        <div class="vs-badge">🔥 HERO VS KAIJU 🔥</div>
-
-        <!-- Player Hero Card -->
-        <div class="card card-player">
-            <div class="card-info">
-                <div class="label" style="color: #38BDF8;">マイヒーロー</div>
-                <div class="name">サイバーヒーロー・ブレイバー</div>
-                <div class="hp-bar-bg"><div id="player-hp-bar" class="hp-bar-fill"></div></div>
-                <div id="player-hp-text" class="hp-text" style="color: #22C55E;">HP: 300 / 300</div>
-            </div>
-            <div class="char-avatar">🦸‍♂️</div>
-        </div>
-
-        <!-- Interactive Control -->
-        <div class="control-card">
-            <div id="time-select-area">
-                <div class="label" style="margin-bottom: 6px;">⏱️ たいせんじかんをえらぼう</div>
-                <div class="time-select-group">
-                    <button id="btn-time-10" class="time-btn active" onclick="selectTime(10)">⚡ 10秒コース</button>
-                    <button id="btn-time-20" class="time-btn" onclick="selectTime(20)">🔥 20秒コース</button>
-                </div>
-            </div>
-            <div id="status-text" class="status-msg">対戦を開始してください</div>
-            <div id="timer-text" class="timer-display" style="display: none;">のこりじかん: 10.0秒</div>
-            <button id="action-btn" class="btn" onclick="handleAction()">🚀 ヒーローバトルスタート！</button>
-        </div>
-
-        <!-- Logs -->
-        <div>
-            <div class="label" style="text-align: left; margin-bottom: 6px;">📜 戦闘ログ</div>
-            <div id="logs" class="logs-box"><div>[System] バトル準備完了。</div></div>
-        </div>
-    </div>
-
-    <script>
-        let pHP = 300, eHP = 300, round = 1, taps = 0, phase = "READY", timer = 10.0, timeLimit = 10, timerId = null;
-        const roulettes = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180];
-
-        function playWebHitSound() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(180, ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.08);
-                gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.08);
-            } catch (e) {}
+        val limit = _uiState.value.selectedTimeLimit
+        _uiState.update {
+            it.copy(
+                phase = BattlePhase.PLAYER_ATTACK,
+                timerSecondsLeft = limit.toFloat(),
+                tapCount = 0,
+                lastPlayerDamage = 0
+            )
         }
 
-        function selectTime(sec) {
-            if (phase !== "READY") return;
-            timeLimit = sec;
-            document.getElementById("btn-time-10").className = sec === 10 ? "time-btn active" : "time-btn";
-            document.getElementById("btn-time-20").className = sec === 20 ? "time-btn active" : "time-btn";
-        }
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
+            val totalMillis = limit * 1000L
 
-        function updateUI() {
-            document.getElementById("round-text").innerText = `ROUND ${round}`;
-            document.getElementById("player-hp-bar").style.width = (pHP / 300 * 100) + "%";
-            document.getElementById("player-hp-text").innerText = `HP: ${pHP} / 300`;
-            document.getElementById("enemy-hp-bar").style.width = (eHP / 300 * 100) + "%";
-            document.getElementById("enemy-hp-text").innerText = `HP: ${eHP} / 300`;
-        }
+            while (_uiState.value.phase == BattlePhase.PLAYER_ATTACK) {
+                val elapsed = System.currentTimeMillis() - startTime
+                val remaining = (totalMillis - elapsed).coerceAtLeast(0L)
+                val secondsLeft = remaining / 1000.0f
 
-        function addLog(tag, msg) {
-            const box = document.getElementById("logs");
-            const div = document.createElement("div");
-            div.innerText = `[${tag}] ${msg}`;
-            box.prepend(div);
-        }
+                _uiState.update { it.copy(timerSecondsLeft = secondsLeft) }
 
-        function handleAction() {
-            const btn = document.getElementById("action-btn");
-            const st = document.getElementById("status-text");
-            const timerTxt = document.getElementById("timer-text");
-            const timeArea = document.getElementById("time-select-area");
-
-            if (phase === "READY" || phase === "GAME_OVER") {
-                if (phase === "GAME_OVER") { pHP = 300; eHP = 300; round = 1; }
-                taps = 0; phase = "PLAYER_ATTACK"; timer = timeLimit;
-                updateUI();
-                timeArea.style.display = "none";
-                timerTxt.style.display = "block";
-                btn.className = "btn btn-attack";
-                btn.innerText = "💥 ヒーロービームアタック！ (連打！)";
-                st.innerText = "🔥 ボタンを連打して大怪獣をたおせ！";
-                
-                if (timerId) clearInterval(timerId);
-                timerId = setInterval(() => {
-                    timer -= 0.1;
-                    if (timer <= 0) {
-                        timer = 0;
-                        clearInterval(timerId);
-                        finishPlayerAttack();
-                    } else {
-                        timerTxt.innerText = `のこりじかん: ${timer.toFixed(1)}秒 | 連打数: ${taps}`;
-                    }
-                }, 100);
-            } else if (phase === "PLAYER_ATTACK") {
-                if (timer > 0) {
-                    taps++;
-                    playWebHitSound();
-                    timerTxt.innerText = `のこりじかん: ${Math.max(0, timer).toFixed(1)}秒 | 連打数: ${taps}`;
+                if (remaining <= 0L) {
+                    _uiState.update { it.copy(timerSecondsLeft = 0f) }
+                    break
                 }
-            } else if (phase === "PLAYER_RESULT") {
-                executeEnemyTurn();
-            } else if (phase === "ENEMY_RESULT") {
-                phase = "PLAYER_ATTACK";
-                taps = 0; timer = timeLimit;
-                btn.className = "btn btn-attack";
-                btn.innerText = "💥 ヒーロービームアタック！ (連打！)";
-                st.innerText = "🔥 ボタンを連打して大怪獣をたおせ！";
-                timerTxt.style.display = "block";
-                if (timerId) clearInterval(timerId);
-                timerId = setInterval(() => {
-                    timer -= 0.1;
-                    if (timer <= 0) {
-                        timer = 0;
-                        clearInterval(timerId);
-                        finishPlayerAttack();
-                    } else {
-                        timerTxt.innerText = `のこりじかん: ${timer.toFixed(1)}秒 | 連打数: ${taps}`;
-                    }
-                }, 100);
+                delay(30)
+            }
+
+            if (_uiState.value.phase == BattlePhase.PLAYER_ATTACK) {
+                finishPlayerTurn()
             }
         }
+    }
 
-        function finishPlayerAttack() {
-            const btn = document.getElementById("action-btn");
-            const st = document.getElementById("status-text");
-            const timerTxt = document.getElementById("timer-text");
-
-            const damage = taps * 2;
-            eHP = Math.max(0, eHP - damage);
-            updateUI();
-            addLog("Hero", `ROUND ${round}: ${timeLimit}秒間で ${taps}連打！ 大怪獣に ${damage} ダメージ！`);
-
-            timerTxt.style.display = "none";
-
-            if (eHP <= 0) {
-                phase = "GAME_OVER";
-                st.innerText = "🎉 WINNER! 大怪獣『ギガガメディス』を撃退した！";
-                btn.className = "btn";
-                btn.innerText = "🔄 もう一度対戦する";
-                document.getElementById("time-select-area").style.display = "block";
-            } else {
-                phase = "PLAYER_RESULT";
-                st.innerText = `💥 ヒーロー攻撃完了！ ${damage} ダメージを与えた！`;
-                btn.className = "btn";
-                btn.innerText = "次へ (大怪獣のターン)";
+    fun onTapAttackButton() {
+        val state = _uiState.value
+        if (state.phase == BattlePhase.PLAYER_ATTACK && state.timerSecondsLeft > 0f) {
+            _uiState.update {
+                it.copy(
+                    tapCount = it.tapCount + 1,
+                    totalPlayerTapsInMatch = it.totalPlayerTapsInMatch + 1
+                )
             }
         }
+    }
 
-        function executeEnemyTurn() {
-            const btn = document.getElementById("action-btn");
-            const st = document.getElementById("status-text");
+    private fun finishPlayerTurn() {
+        val taps = _uiState.value.tapCount
+        val limit = _uiState.value.selectedTimeLimit
+        val damagePerTap = if (limit == 20) 1 else 2
+        val damage = taps * damagePerTap
+        val newEnemyHp = (_uiState.value.enemyHp - damage).coerceAtLeast(0)
+        val round = _uiState.value.roundCount
 
-            const damage = roulettes[Math.floor(Math.random() * roulettes.length)];
-            pHP = Math.max(0, pHP - damage);
-            updateUI();
-            addLog("Kaiju", `ROUND ${round}: 大怪獣の攻撃 [${damage}]！ ${damage} 被ダメージ！`);
+        val log = BattleLog(
+            round = round,
+            message = "ROUND $round: ${limit}秒間で $taps 回連打！ 相手に $damage ダメージ！",
+            isPlayerAction = true
+        )
 
-            if (pHP <= 0) {
-                phase = "GAME_OVER";
-                st.innerText = "💥 GAME OVER... 超ヒーロー・ブレイバー倒れる";
-                btn.className = "btn";
-                btn.innerText = "🔄 もう一度対戦する";
-                document.getElementById("time-select-area").style.display = "block";
-            } else {
-                phase = "ENEMY_RESULT";
-                round++;
-                st.innerText = `⚡ 大怪獣のルーレット攻撃！ ${damage} ダメージを受けた！`;
-                btn.className = "btn";
-                btn.innerText = "次へ (ヒーローのターン)";
-            }
+        val isEnemyDefeated = newEnemyHp <= 0
+
+        _uiState.update { state ->
+            state.copy(
+                phase = if (isEnemyDefeated) BattlePhase.GAME_OVER else BattlePhase.PLAYER_RESULT,
+                enemyHp = newEnemyHp,
+                lastPlayerDamage = damage,
+                winner = if (isEnemyDefeated) "PLAYER" else null,
+                battleLogs = listOf(log) + state.battleLogs,
+                totalPlayerDamageDealt = state.totalPlayerDamageDealt + damage
+            )
         }
-    </script>
-</body>
-</html>
-"""
+    }
 
-# HTMLを埋め込んで表示
-components.html(html_code, height=750, scrolling=False)
+    fun startEnemyTurn() {
+        if (_uiState.value.phase != BattlePhase.PLAYER_RESULT) return
+
+        _uiState.update {
+            it.copy(
+                phase = BattlePhase.ENEMY_ATTACK,
+                isRouletteSpinning = true,
+                selectedRouletteValue = -1,
+                lastEnemyDamage = 0
+            )
+        }
+
+        rouletteJob?.cancel()
+        rouletteJob = viewModelScope.launch {
+            val chosenNumber = rouletteNumbers[Random.nextInt(rouletteNumbers.size)]
+            var delayMs = 50L
+            val totalCycles = 25 + Random.nextInt(10)
+
+            for (i in 0 until totalCycles) {
+                _uiState.update { state ->
+                    val nextIdx = (state.currentRouletteIndex + 1) % rouletteNumbers.size
+                    state.copy(currentRouletteIndex = nextIdx)
+                }
+                delay(delayMs)
+                if (i > totalCycles - 10) {
+                    delayMs += 30L
+                }
+            }
+
+            val chosenIndex = rouletteNumbers.indexOf(chosenNumber)
+            _uiState.update { state ->
+                state.copy(
+                    currentRouletteIndex = chosenIndex,
+                    selectedRouletteValue = chosenNumber,
+                    isRouletteSpinning = false
+                )
+            }
+
+            delay(600)
+            finishEnemyTurn(chosenNumber)
+        }
+    }
+
+    private fun finishEnemyTurn(damage: Int) {
+        val newPlayerHp = (_uiState.value.playerHp - damage).coerceAtLeast(0)
+        val round = _uiState.value.roundCount
+        val log = BattleLog(
+            round = round,
+            message = "ROUND $round: 相手のルーレットが [$damage] に停止！ $damage ダメージを受けた！",
+            isPlayerAction = false
+        )
+
+        val isPlayerDefeated = newPlayerHp <= 0
+
+        _uiState.update { state ->
+            state.copy(
+                phase = if (isPlayerDefeated) BattlePhase.GAME_OVER else BattlePhase.ENEMY_RESULT,
+                playerHp = newPlayerHp,
+                lastEnemyDamage = damage,
+                winner = if (isPlayerDefeated) "ENEMY" else state.winner,
+                battleLogs = listOf(log) + state.battleLogs,
+                roundCount = if (isPlayerDefeated) state.roundCount else state.roundCount + 1
+            )
+        }
+    }
+
+    fun restartGame() {
+        startBattle()
+    }
+}
