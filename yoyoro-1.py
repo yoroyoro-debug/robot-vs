@@ -1,185 +1,190 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ロボットバトルアリーナ - Web Edition</title>
+# =========================================================
+# Robot Battle Game - Streamlit Cyber Edition (app.py)
+# 
+# 1. pip install streamlit
+# 2. streamlit run yoyoro-1.py
+# =========================================================
+
+import streamlit as st
+import random
+
+# --- 1. Pure State Logic ---
+class RobotBattleCore:
+    def __init__(self):
+        self.player_hp = 300
+        self.max_player_hp = 300
+        self.enemy_hp = 300
+        self.max_enemy_hp = 300
+
+        self.round_count = 1
+        self.phase = "READY"  # READY, PLAYER_ATTACK, PLAYER_RESULT, ENEMY_RESULT, GAME_OVER
+        self.tap_count = 0
+        self.last_player_damage = 0
+        self.last_enemy_damage = 0
+        self.battle_logs = ["ゲーム準備完了。対戦を開始してください。"]
+        self.roulette_numbers = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180]
+
+    def add_log(self, tag, msg):
+        self.battle_logs.insert(0, f"[{tag}] {msg}")
+
+    def tap_attack(self):
+        if self.phase == "PLAYER_ATTACK":
+            self.tap_count += 1
+
+    def finish_player_attack(self):
+        self.last_player_damage = self.tap_count * 2
+        self.enemy_hp = max(0, self.enemy_hp - self.last_player_damage)
+        self.add_log("Player", f"ROUND {self.round_count}: {self.tap_count}連打！ {self.last_player_damage} ダメージ！")
+        
+        if self.enemy_hp <= 0:
+            self.phase = "GAME_OVER"
+        else:
+            self.phase = "PLAYER_RESULT"
+
+    def execute_enemy_turn(self):
+        self.last_enemy_damage = random.choice(self.roulette_numbers)
+        self.player_hp = max(0, self.player_hp - self.last_enemy_damage)
+        self.add_log("Enemy", f"ROUND {self.round_count}: 敵ルーレット [{self.last_enemy_damage}]！ {self.last_enemy_damage} 被ダメージ！")
+
+        if self.player_hp <= 0:
+            self.phase = "GAME_OVER"
+        else:
+            self.phase = "ENEMY_RESULT"
+            self.round_count += 1
+
+    def reset_game(self):
+        self.__init__()
+
+# --- 2. Streamlit Custom Styled UI ---
+def main():
+    st.set_page_config(page_title="ロボットバトルアリーナ", page_icon="⚡", layout="centered")
+
+    # Custom Cyberpunk / Dark UI CSS (通常文字列にしてf-stringのCSSエラーを回避)
+    st.markdown('''
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0F172A; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; padding: 16px; min-height: 100vh; }
-        .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 14px; }
-        .header { background: #1E293B; border-radius: 14px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; }
-        .title { color: #38BDF8; font-size: 18px; font-weight: bold; }
-        .round { color: #A855F7; font-size: 14px; font-weight: bold; }
-        
-        .card { background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius: 16px; padding: 16px; border: 2px solid #334155; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
-        .card-enemy { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.15); }
-        .card-player { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.15); }
-        .card-info { flex: 1; }
-        .label { font-size: 11px; font-weight: bold; color: #94A3B8; text-transform: uppercase; }
-        .name { font-size: 18px; font-weight: bold; color: #FFFFFF; margin: 2px 0 6px 0; }
-        
-        .hp-bar-bg { background: #334155; border-radius: 10px; height: 12px; overflow: hidden; margin-bottom: 4px; }
-        .hp-bar-fill { background: #22C55E; height: 100%; width: 100%; transition: width 0.3s ease; }
-        .hp-enemy { background: #F43F5E; }
-        .hp-text { font-size: 13px; font-weight: bold; }
-        
-        .robot-icon { width: 64px; height: 64px; opacity: 0.9; }
-
-        .vs-badge { text-align: center; font-size: 12px; font-weight: bold; color: #64748B; letter-spacing: 2px; }
-
-        .btn { background: #38BDF8; color: #0F172A; font-weight: bold; font-size: 16px; border: none; padding: 14px; border-radius: 12px; cursor: pointer; transition: transform 0.1s, background 0.2s; width: 100%; text-align: center; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3); }
-        .btn:active { transform: scale(0.97); }
-        .btn-attack { background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%); color: white; box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4); }
-        
-        .control-card { background: #1E293B; border-radius: 16px; padding: 16px; border: 1px solid #334155; text-align: center; display: flex; flex-direction: column; gap: 12px; }
-        .status-msg { font-size: 15px; font-weight: bold; color: #F8FAFC; }
-        
-        .logs-box { background: #020617; border-radius: 10px; padding: 10px; max-height: 120px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #CBD5E1; display: flex; flex-direction: column; gap: 4px; border: 1px solid #1E293B; }
+        .stApp { background-color: #0F172A !important; color: #F8FAFC; }
+        .robo-card {
+            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+            border-radius: 16px;
+            padding: 16px;
+            border: 2px solid #334155;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .enemy-card { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
+        .player-card { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+        .hp-text-enemy { color: #F43F5E; font-weight: bold; font-size: 18px; }
+        .hp-text-player { color: #22C55E; font-weight: bold; font-size: 18px; }
+        .title-bar {
+            background: #1E293B;
+            border-radius: 12px;
+            padding: 12px 20px;
+            border: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .stButton>button {
+            border-radius: 12px !important;
+            font-weight: bold !important;
+            font-size: 18px !important;
+            padding: 12px 24px !important;
+            transition: all 0.2s !important;
+        }
     </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="title">🤖 ROBO BATTLE ARENA</div>
-            <div id="round-text" class="round">ROUND 1</div>
-        </div>
+    ''', unsafe_allow_html=True)
 
-        <!-- Enemy Card -->
-        <div class="card card-enemy">
-            <div class="card-info">
-                <div class="label" style="color: #A855F7;">ライバルロボ</div>
-                <div class="name">ブラックライトニング</div>
-                <div class="hp-bar-bg"><div id="enemy-hp-bar" class="hp-bar-fill hp-enemy"></div></div>
-                <div id="enemy-hp-text" class="hp-text" style="color: #F43F5E;">HP: 300 / 300</div>
-            </div>
-            <img class="robot-icon" src="https://api.iconify.design/game-icons:robot-antennas.svg?color=%23a855f7" alt="Enemy Robot">
-        </div>
+    if "game" not in st.session_state:
+        st.session_state.game = RobotBattleCore()
 
-        <div class="vs-badge">⚡ VS BATTLE ⚡</div>
+    game = st.session_state.game
 
-        <!-- Player Card -->
-        <div class="card card-player">
-            <div class="card-info">
-                <div class="label" style="color: #38BDF8;">マイロボ</div>
-                <div class="name">ドラコニック インパクト</div>
-                <div class="hp-bar-bg"><div id="player-hp-bar" class="hp-bar-fill"></div></div>
-                <div id="player-hp-text" class="hp-text" style="color: #22C55E;">HP: 300 / 300</div>
-            </div>
-            <img class="robot-icon" src="https://api.iconify.design/game-icons:mech-golem.svg?color=%2338bdf8" alt="Player Robot">
-        </div>
-
-        <!-- Interactive Control -->
-        <div class="control-card">
-            <div id="status-text" class="status-msg">対戦を開始してください</div>
-            <button id="action-btn" class="btn" onclick="handleAction()">🚀 バトルスタート！</button>
-        </div>
-
-        <!-- Logs -->
-        <div class="control-card" style="padding: 12px;">
-            <div class="label" style="text-align: left; margin-bottom: 6px;">📜 戦闘ログ</div>
-            <div id="logs" class="logs-box"><div>[System] ゲーム準備完了。</div></div>
-        </div>
+    # Title Bar
+    st.markdown(f'''
+    <div class="title-bar">
+        <span style="font-size: 20px; font-weight: bold; color: #38BDF8;">🤖 ROBO BATTLE ARENA</span>
+        <span style="font-size: 16px; font-weight: bold; color: #A855F7;">ROUND {game.round_count}</span>
     </div>
+    ''', unsafe_allow_html=True)
 
-    <script>
-        let pHP = 300, eHP = 300, round = 1, taps = 0, phase = "READY", timer = 10.0, timerId = null;
-        const roulettes = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180];
+    # Robot Cards Area (Enemy Top, Player Bottom)
+    col_e1, col_e2 = st.columns([3, 1])
+    with col_e1:
+        st.markdown(f'''
+        <div class="robo-card enemy-card">
+            <div style="font-size: 12px; color: #A855F7; font-weight: bold;">ライバルロボ</div>
+            <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">ブラックライトニング</div>
+            <div class="hp-text-enemy">HP {game.enemy_hp} / {game.max_enemy_hp}</div>
+        </div>
+        ''', unsafe_allow_html=True)
+        st.progress(game.enemy_hp / game.max_enemy_hp)
+    with col_e2:
+        st.image("https://api.iconify.design/game-icons:robot-antennas.svg?color=%23a855f7", width=80)
 
-        function updateUI() {
-            document.getElementById("round-text").innerText = `ROUND ${round}`;
-            document.getElementById("player-hp-bar").style.width = (pHP / 300 * 100) + "%";
-            document.getElementById("player-hp-text").innerText = `HP: ${pHP} / 300`;
-            document.getElementById("enemy-hp-bar").style.width = (eHP / 300 * 100) + "%";
-            document.getElementById("enemy-hp-text").innerText = `HP: ${eHP} / 300`;
-        }
+    st.markdown("<div style='text-align: center; font-weight: bold; color: #64748B; margin: 8px 0;'>⚡ VS BATTLE ⚡</div>", unsafe_allow_html=True)
 
-        function addLog(tag, msg) {
-            const logs = document.getElementById("logs");
-            logs.innerHTML = `<div>[${tag}] ${msg}</div>` + logs.innerHTML;
-        }
+    col_p1, col_p2 = st.columns([3, 1])
+    with col_p1:
+        st.markdown(f'''
+        <div class="robo-card player-card">
+            <div style="font-size: 12px; color: #38BDF8; font-weight: bold;">マイロボ</div>
+            <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">ドラコニック インパクト</div>
+            <div class="hp-text-player">HP {game.player_hp} / {game.max_player_hp}</div>
+        </div>
+        ''', unsafe_allow_html=True)
+        st.progress(game.player_hp / game.max_player_hp)
+    with col_p2:
+        st.image("https://api.iconify.design/game-icons:mech-golem.svg?color=%2338bdf8", width=80)
 
-        function handleAction() {
-            const btn = document.getElementById("action-btn");
-            const st = document.getElementById("status-text");
+    st.divider()
 
-            if (phase === "READY" || phase === "GAME_OVER") {
-                pHP = 300; eHP = 300; round = 1; taps = 0; phase = "PLAYER_ATTACK"; timer = 10.0;
-                updateUI();
-                btn.className = "btn btn-attack";
-                btn.innerText = "⚔️ 限界突破ラッシュ！ (連打！)";
-                
-                timerId = setInterval(() => {
-                    timer -= 0.1;
-                    st.innerText = `⏱️ 残り時間: ${Math.max(0, timer).toFixed(1)}s | 連打数: ${taps}`;
-                    if (timer <= 0) {
-                        clearInterval(timerId);
-                        finishPlayerAttack();
-                    }
-                }, 100);
-            } else if (phase === "PLAYER_ATTACK") {
-                taps++;
-                st.innerText = `⏱️ 残り時間: ${Math.max(0, timer).toFixed(1)}s | 連打数: ${taps}`;
-            } else if (phase === "PLAYER_RESULT") {
-                executeEnemyTurn();
-            } else if (phase === "ENEMY_RESULT") {
-                phase = "PLAYER_ATTACK"; taps = 0; timer = 10.0;
-                btn.className = "btn btn-attack";
-                btn.innerText = "⚔️ 限界突破ラッシュ！ (連打！)";
-                timerId = setInterval(() => {
-                    timer -= 0.1;
-                    st.innerText = `⏱️ 残り時間: ${Math.max(0, timer).toFixed(1)}s | 連打数: ${taps}`;
-                    if (timer <= 0) {
-                        clearInterval(timerId);
-                        finishPlayerAttack();
-                    }
-                }, 100);
-            }
-        }
+    # Dynamic Battle Action Controls
+    if game.phase == "READY":
+        st.info("⚔️ バトル準備完了！下のボタンを押してバトルを開始しよう！")
+        if st.button("🚀 バトルスタート！", use_container_width=True, type="primary"):
+            game.phase = "PLAYER_ATTACK"
+            st.rerun()
 
-        function finishPlayerAttack() {
-            const btn = document.getElementById("action-btn");
-            const st = document.getElementById("status-text");
-            const dmg = taps * 2;
-            eHP = Math.max(0, eHP - dmg);
-            updateUI();
-            addLog("Player", `ROUND ${round}: ${taps}連打！ ${dmg} ダメージ！`);
+    elif game.phase == "PLAYER_ATTACK":
+        st.warning("🔥 10秒間連打アタック！ ボタンを押しまくれ！")
+        if st.button("⚡ 限界突破アタック！ (+1)", use_container_width=True):
+            game.tap_attack()
 
-            if (eHP <= 0) {
-                phase = "GAME_OVER";
-                st.innerText = "🎉 WINNER! 敵ロボを撃破しました！";
-                btn.className = "btn";
-                btn.innerText = "🔄 もう一度対戦する";
-            } else {
-                phase = "PLAYER_RESULT";
-                st.innerText = `攻撃結果: ${taps}連打 (${dmg}ダメージ！)`;
-                btn.className = "btn";
-                btn.innerText = "次へ (敵の攻撃ターン)";
-            }
-        }
+        st.metric("現在の連打数", f"{game.tap_count} 回", f"与ダメージ: {game.tap_count * 2}")
 
-        function executeEnemyTurn() {
-            const btn = document.getElementById("action-btn");
-            const st = document.getElementById("status-text");
-            const eDmg = roulettes[Math.floor(Math.random() * roulettes.length)];
-            pHP = Math.max(0, pHP - eDmg);
-            updateUI();
-            addLog("Enemy", `ROUND ${round}: ルーレット [${eDmg}]！ ${eDmg} 被ダメージ！`);
+        if st.button("⏱️ 攻撃確定 (ターン終了)", use_container_width=True, type="primary"):
+            game.finish_player_attack()
+            st.rerun()
 
-            if (pHP <= 0) {
-                phase = "GAME_OVER";
-                st.innerText = "💥 GAME OVER... プレイヤーロボ大破";
-                btn.className = "btn btn-attack";
-                btn.innerText = "🔄 リトライする";
-            } else {
-                round++;
-                phase = "ENEMY_RESULT";
-                st.innerText = `敵の攻撃: ${eDmg} ダメージを受けた！`;
-                btn.className = "btn";
-                btn.innerText = "次へ (自分の攻撃ターン)";
-            }
-        }
-    </script>
-</body>
-</html>
+    elif game.phase == "PLAYER_RESULT":
+        st.success(f"💥 攻撃完了！ {game.last_player_damage} ダメージを与えた！")
+        if st.button("次へ (敵のターン)", use_container_width=True):
+            game.execute_enemy_turn()
+            st.rerun()
+
+    elif game.phase == "ENEMY_RESULT":
+        st.error(f"⚡ 敵のルーレット攻撃！ {game.last_enemy_damage} ダメージを受けた！")
+        if st.button("次へ (自分のターン)", use_container_width=True):
+            game.phase = "PLAYER_ATTACK"
+            game.tap_count = 0
+            st.rerun()
+
+    elif game.phase == "GAME_OVER":
+        if game.player_hp > 0:
+            st.balloons()
+            st.success("🎉 WINNER! 敵ロボ『ブラックライトニング』を撃破！")
+        else:
+            st.error("💥 GAME OVER... ドラコニック インパクト大破")
+
+        if st.button("🔄 もう一度対戦する", use_container_width=True, type="primary"):
+            game.reset_game()
+            st.rerun()
+
+    st.divider()
+    st.caption("📜 戦闘ログ")
+    for log in game.battle_logs[:6]:
+        st.code(log, language="text")
+
+if __name__ == "__main__":
+    main()
