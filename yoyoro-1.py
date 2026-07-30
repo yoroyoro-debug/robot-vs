@@ -1,215 +1,129 @@
-package com.example.game
+# =========================================================
+# Robot Battle Game - Streamlit Web Version (app.py)
+# GUI依存なし (Tkinter不要) / Streamlit 専用Web実装
+# 実行方法: streamlit run app.py
+# =========================================================
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import streamlit as st
+import random
 
-enum class BattlePhase {
-    READY,
-    PLAYER_ATTACK,
-    PLAYER_RESULT,
-    ENEMY_ATTACK,
-    ENEMY_RESULT,
-    GAME_OVER
-}
+# --- 1. Pure State Logic (GUI非依存) ---
+class RobotBattleCore:
+    def __init__(self):
+        self.player_hp = 300
+        self.max_player_hp = 300
+        self.enemy_hp = 300
+        self.max_enemy_hp = 300
+        self.round_count = 1
+        self.phase = "READY"  # READY, PLAYER_ATTACK, PLAYER_RESULT, ENEMY_RESULT, GAME_OVER
+        self.tap_count = 0
+        self.last_player_damage = 0
+        self.last_enemy_damage = 0
+        self.battle_logs = []
+        self.roulette_numbers = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180]
 
-enum class Winner {
-    NONE,
-    PLAYER,
-    ENEMY
-}
+    def add_log(self, tag, msg):
+        self.battle_logs.insert(0, f"[{tag}] {msg}")
 
-data class BattleLog(
-    val id: Long = System.currentTimeMillis(),
-    val message: String,
-    val isPlayerAction: Boolean = true
-)
+    def tap_attack(self):
+        if self.phase == "PLAYER_ATTACK":
+            self.tap_count += 1
 
-data class BattleState(
-    val playerHp: Int = 300,
-    val maxPlayerHp: Int = 300,
-    val enemyHp: Int = 300,
-    val maxEnemyHp: Int = 300,
-    val roundCount: Int = 1,
-    val phase: BattlePhase = BattlePhase.READY,
-    val tapCount: Int = 0,
-    val timerSecondsLeft: Float = 10f,
-    val lastPlayerDamage: Int = 0,
-    val lastEnemyDamage: Int = 0,
-    val currentRouletteIndex: Int = 0,
-    val selectedRouletteValue: Int = 0,
-    val isRouletteSpinning: Boolean = false,
-    val winner: Winner = Winner.NONE,
-    val totalPlayerTapsInMatch: Int = 0,
-    val totalPlayerDamageDealt: Int = 0,
-    val battleLogs: List<BattleLog> = emptyList()
-)
+    def finish_player_attack(self):
+        self.last_player_damage = self.tap_count * 2
+        self.enemy_hp = max(0, self.enemy_hp - self.last_player_damage)
+        self.add_log("Player", f"ROUND {self.round_count}: {self.tap_count}連打！ {self.last_player_damage} ダメージを与えた！")
+        
+        if self.enemy_hp <= 0:
+            self.phase = "GAME_OVER"
+        else:
+            self.phase = "PLAYER_RESULT"
 
-class RobotBattleViewModel : ViewModel() {
+    def execute_enemy_turn(self):
+        self.last_enemy_damage = random.choice(self.roulette_numbers)
+        self.player_hp = max(0, self.player_hp - self.last_enemy_damage)
+        self.add_log("Enemy", f"ROUND {self.round_count}: 敵ルーレット [{self.last_enemy_damage}]！ {self.last_enemy_damage} 被ダメージ！")
 
-    private val _uiState = MutableStateFlow(BattleState())
-    val uiState: StateFlow<BattleState> = _uiState.asStateFlow()
+        if self.player_hp <= 0:
+            self.phase = "GAME_OVER"
+        else:
+            self.phase = "ENEMY_RESULT"
+            self.round_count += 1
 
-    val rouletteNumbers = listOf(0, 20, 40, 60, 80, 100, 120, 140, 160, 180)
+    def reset_game(self):
+        self.__init__()
 
-    private var timerJob: Job? = null
-    private var rouletteJob: Job? = null
+# --- 2. Streamlit Web Interface ---
+def main():
+    st.set_page_config(page_title="ロボットバトルアリーナ", page_icon="⚡", layout="centered")
 
-    fun startPlayerTurn() {
-        if (_uiState.value.phase == BattlePhase.GAME_OVER) {
-            restartGame()
-            return
-        }
+    if "game" not in st.session_state:
+        st.session_state.game = RobotBattleCore()
 
-        _uiState.update {
-            it.copy(
-                phase = BattlePhase.PLAYER_ATTACK,
-                tapCount = 0,
-                timerSecondsLeft = 10.0f
-            )
-        }
+    game = st.session_state.game
 
-        addLog("ROUND ${uiState.value.roundCount}: ドラコニック インパクトの攻撃ターン！ 10秒連打スタート！", true)
+    st.title("⚡ ROBO BATTLE ARENA")
+    st.caption(f"ROUND {game.round_count} | ドラコニック インパクト vs ブラックライトニング")
 
-        timerJob?.cancel()
-        timerJob = viewModelScope.launch {
-            val startTime = System.currentTimeMillis()
-            val totalDurationMs = 10000L
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("🤖 ドラコニック")
+        st.progress(game.player_hp / game.max_player_hp)
+        st.write(f"**HP: {game.player_hp} / {game.max_player_hp}**")
 
-            while (true) {
-                val elapsed = System.currentTimeMillis() - startTime
-                val remainingMs = (totalDurationMs - elapsed).coerceAtLeast(0L)
-                val remainingSec = remainingMs / 1000f
+    with col2:
+        st.subheader("👾 ブラックライトニング")
+        st.progress(game.enemy_hp / game.max_enemy_hp)
+        st.write(f"**HP: {game.enemy_hp} / {game.max_enemy_hp}**")
 
-                _uiState.update { it.copy(timerSecondsLeft = remainingSec) }
+    st.divider()
 
-                if (remainingMs <= 0) {
-                    break
-                }
-                delay(40)
-            }
+    # Dynamic Game Controls
+    if game.phase == "READY":
+        st.info("バトル準備完了！開始ボタンを押してください。")
+        if st.button("🚀 バトルスタート！", use_container_width=True, type="primary"):
+            game.phase = "PLAYER_ATTACK"
+            st.rerun()
 
-            finishPlayerTurn()
-        }
-    }
+    elif game.phase == "PLAYER_ATTACK":
+        st.warning("⚔️ 限界突破ラッシュ！ボタンを連打してください！")
+        if st.button("🔥 アタック連打！ (+1)", use_container_width=True):
+            game.tap_attack()
 
-    fun onTapAttackButton() {
-        if (_uiState.value.phase != BattlePhase.PLAYER_ATTACK) return
+        st.metric("現在の連打数", f"{game.tap_count} 回", f"予想ダメージ: {game.tap_count * 2}")
 
-        _uiState.update {
-            it.copy(
-                tapCount = it.tapCount + 1,
-                totalPlayerTapsInMatch = it.totalPlayerTapsInMatch + 1
-            )
-        }
-    }
+        if st.button("⏱️ 攻撃確定 (ターン終了)", use_container_width=True, type="primary"):
+            game.finish_player_attack()
+            st.rerun()
 
-    private fun finishPlayerTurn() {
-        val taps = _uiState.value.tapCount
-        val damage = taps * 2
+    elif game.phase == "PLAYER_RESULT":
+        st.success(f"攻撃完了！ {game.last_player_damage} ダメージを与えました！")
+        if st.button("次へ (敵のターン)", use_container_width=True):
+            game.execute_enemy_turn()
+            st.rerun()
 
-        val newEnemyHp = (_uiState.value.enemyHp - damage).coerceAtLeast(0)
+    elif game.phase == "ENEMY_RESULT":
+        st.error(f"敵の攻撃！ {game.last_enemy_damage} ダメージを受けました！")
+        if st.button("次へ (自分のターン)", use_container_width=True):
+            game.phase = "PLAYER_ATTACK"
+            game.tap_count = 0
+            st.rerun()
 
-        _uiState.update {
-            it.copy(
-                enemyHp = newEnemyHp,
-                lastPlayerDamage = damage,
-                totalPlayerDamageDealt = it.totalPlayerDamageDealt + damage
-            )
-        }
+    elif game.phase == "GAME_OVER":
+        if game.player_hp > 0:
+            st.balloons()
+            st.success("🎉 WINNER! 敵ロボを撃破しました！")
+        else:
+            st.error("💥 GAME OVER... プレイヤーロボ大破")
 
-        addLog("【連打判定】${taps}回タップ！ ブラックライトニングに${damage}ダメージ！", true)
+        if st.button("🔄 もう一度対戦する", use_container_width=True, type="primary"):
+            game.reset_game()
+            st.rerun()
 
-        if (newEnemyHp <= 0) {
-            _uiState.update {
-                it.copy(
-                    phase = BattlePhase.GAME_OVER,
-                    winner = Winner.PLAYER
-                )
-            }
-            addLog("🎉 勝利！ 敵ロボ「ブラックライトニング」を完全撃破！", true)
-        } else {
-            _uiState.update {
-                it.copy(phase = BattlePhase.PLAYER_RESULT)
-            }
-        }
-    }
+    st.divider()
+    st.subheader("📜 戦闘ログ")
+    for log in game.battle_logs[:8]:
+        st.text(log)
 
-    fun startEnemyTurn() {
-        _uiState.update {
-            it.copy(
-                phase = BattlePhase.ENEMY_ATTACK,
-                isRouletteSpinning = true
-            )
-        }
-
-        addLog("ブラックライトニングの攻撃ターン！ 高出力ルーレット回転中...", false)
-
-        rouletteJob?.cancel()
-        rouletteJob = viewModelScope.launch {
-            val totalSteps = 24
-            for (i in 0 until totalSteps) {
-                val nextIndex = (0 until rouletteNumbers.size).random()
-                _uiState.update {
-                    it.copy(currentRouletteIndex = nextIndex)
-                }
-                val delayTime = (60 + (i * 12)).toLong()
-                delay(delayTime)
-            }
-
-            val finalIndex = (0 until rouletteNumbers.size).random()
-            val chosenDamage = rouletteNumbers[finalIndex]
-
-            val newPlayerHp = (_uiState.value.playerHp - chosenDamage).coerceAtLeast(0)
-
-            _uiState.update {
-                it.copy(
-                    currentRouletteIndex = finalIndex,
-                    selectedRouletteValue = chosenDamage,
-                    lastEnemyDamage = chosenDamage,
-                    isRouletteSpinning = false,
-                    playerHp = newPlayerHp
-                )
-            }
-
-            addLog("【敵ルーレット】[${chosenDamage}] を検出！ ドラコニック インパクトに${chosenDamage}ダメージ！", false)
-
-            if (newPlayerHp <= 0) {
-                _uiState.update {
-                    it.copy(
-                        phase = BattlePhase.GAME_OVER,
-                        winner = Winner.ENEMY
-                    )
-                }
-                addLog("💥 敗北... プレイヤーロボ「ドラコニック インパクト」が大破しました。", false)
-            } else {
-                _uiState.update {
-                    it.copy(
-                        phase = BattlePhase.ENEMY_RESULT,
-                        roundCount = it.roundCount + 1
-                    )
-                }
-            }
-        }
-    }
-
-    fun restartGame() {
-        timerJob?.cancel()
-        rouletteJob?.cancel()
-        _uiState.value = BattleState()
-        addLog("ゲームをリセットしました。対戦スタートボタンを押してください。", true)
-    }
-
-    private fun addLog(message: String, isPlayer: Boolean) {
-        _uiState.update {
-            val newLogs = listOf(BattleLog(message = message, isPlayerAction = isPlayer)) + it.battleLogs
-            it.copy(battleLogs = newLogs.take(30))
-        }
-    }
-}
+if __name__ == "__main__":
+    main()
