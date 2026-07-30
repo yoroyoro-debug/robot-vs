@@ -1,3 +1,15 @@
+import streamlit as st
+import streamlit.components.v1 as components
+
+# ページ設定
+st.set_page_config(
+    page_title="サイバーヒーローVS暗黒龍王",
+    page_icon="🦸‍♂️",
+    layout="centered"
+)
+
+# 完全作動するHTML/CSS/JS埋め込みコード
+html_code = """
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -249,3 +261,7 @@
     </script>
 </body>
 </html>
+"""
+
+# HTMLを埋め込んで表示
+components.html(html_code, height=750, scrolling=False)
