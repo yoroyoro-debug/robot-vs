@@ -3,61 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ヒーロー VS 大怪獣 バトルアリーナ</title>
+    <title>ヒーローVS大怪獣 バトルアリーナ</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background: #0F172A;
-            color: #F8FAFC;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            padding: 16px;
-            min-height: 100vh;
-        }
-        .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; }
-        .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; }
-        .title { font-size: 18px; font-weight: 900; color: #38BDF8; letter-spacing: 1px; }
-        .round { font-size: 14px; font-weight: bold; color: #A855F7; }
-
-        .card {
-            background: #1E293B;
-            border-radius: 20px;
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border: 2px solid #334155;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-        }
-        .card-enemy { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.25); }
-        .card-player { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.25); }
-        .card-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-        .label { font-size: 11px; font-weight: bold; letter-spacing: 1px; }
-        .name { font-size: 18px; font-weight: 900; color: #FFFFFF; }
+        body { background: #0F172A; color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; padding: 16px; min-height: 100vh; }
+        .container { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; }
         
-        .hp-bar-bg { background: #0F172A; border-radius: 10px; height: 12px; overflow: hidden; margin-top: 4px; border: 1px solid #334155; }
-        .hp-bar-fill { background: linear-gradient(90deg, #38BDF8, #0284C7); height: 100%; width: 100%; transition: width 0.3s ease; }
-        .hp-enemy { background: linear-gradient(90deg, #F43F5E, #E11D48); }
-        .hp-text { font-size: 12px; font-weight: bold; }
+        .header { background: #020617; padding: 12px 16px; border-radius: 12px; border: 1px solid #1E293B; display: flex; justify-content: space-between; align-items: center; }
+        .title { font-size: 16px; font-weight: bold; color: #38BDF8; }
+        .round { font-size: 14px; font-weight: bold; color: #A855F7; }
+        
+        .card { background: #1E293B; border-radius: 16px; padding: 14px; border: 2px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+        .card-enemy { border-color: #A855F7; }
+        .card-player { border-color: #38BDF8; }
+        .card-info { flex: 1; }
+        .label { font-size: 11px; font-weight: bold; }
+        .name { font-size: 18px; font-weight: bold; margin-bottom: 6px; }
+        
+        .hp-bar-bg { background: #0F172A; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 4px; }
+        .hp-bar-fill { background: #22C55E; height: 100%; width: 100%; transition: width 0.3s; }
+        .hp-enemy { background: #F43F5E; }
+        .hp-text { font-size: 13px; font-weight: bold; }
         
         .char-avatar { font-size: 48px; width: 64px; text-align: center; }
-
-        .vs-badge { text-align: center; font-size: 12px; font-weight: 900; color: #64748B; letter-spacing: 2px; }
+        .vs-badge { text-align: center; font-size: 12px; font-weight: bold; color: #64748B; letter-spacing: 2px; }
 
         .time-select-group { display: flex; gap: 10px; margin-bottom: 8px; }
-        .time-btn { flex: 1; padding: 10px; border-radius: 12px; border: 1px solid #334155; background: #0F172A; color: #94A3B8; font-weight: bold; cursor: pointer; transition: all 0.2s; }
-        .time-btn.active { background: #38BDF8; color: #0F172A; border-color: #38BDF8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+        .time-btn { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid #334155; background: #0F172A; color: #94A3B8; font-weight: bold; cursor: pointer; }
+        .time-btn.active { background: #38BDF8; color: #0F172A; border-color: #38BDF8; }
 
-        .btn { background: #38BDF8; color: #0F172A; font-weight: 900; font-size: 16px; border: none; padding: 16px; border-radius: 14px; cursor: pointer; transition: transform 0.05s, background 0.2s; width: 100%; text-align: center; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3); }
-        .btn:active { transform: scale(0.96); }
-        .btn-attack { background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%); color: white; box-shadow: 0 4px 20px rgba(244, 63, 94, 0.5); font-size: 18px; }
+        .btn { background: #38BDF8; color: #0F172A; font-weight: bold; font-size: 16px; border: none; padding: 14px; border-radius: 12px; cursor: pointer; transition: transform 0.1s, background 0.2s; width: 100%; text-align: center; box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3); }
+        .btn:active { transform: scale(0.97); }
+        .btn-attack { background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%); color: white; box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4); font-size: 18px; }
         
-        .control-card { background: #1E293B; border-radius: 20px; padding: 18px; border: 1px solid #334155; text-align: center; display: flex; flex-direction: column; gap: 12px; }
+        .control-card { background: #1E293B; border-radius: 16px; padding: 16px; border: 1px solid #334155; text-align: center; display: flex; flex-direction: column; gap: 12px; }
         .status-msg { font-size: 16px; font-weight: bold; color: #F8FAFC; }
         .timer-display { font-size: 24px; font-weight: 900; color: #38BDF8; margin-top: 4px; }
 
-        .logs-box { background: #020617; border-radius: 12px; padding: 12px; max-height: 140px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #CBD5E1; display: flex; flex-direction: column; gap: 6px; border: 1px solid #1E293B; }
+        .logs-box { background: #020617; border-radius: 10px; padding: 10px; max-height: 120px; overflow-y: auto; font-family: monospace; font-size: 11px; color: #CBD5E1; display: flex; flex-direction: column; gap: 4px; border: 1px solid #1E293B; }
     </style>
 </head>
 <body>
@@ -67,7 +50,7 @@
             <div id="round-text" class="round">ROUND 1</div>
         </div>
 
-        <!-- 大怪獣カード -->
+        <!-- Enemy Kaiju Card -->
         <div class="card card-enemy">
             <div class="card-info">
                 <div class="label" style="color: #A855F7;">だいかいじゅう</div>
@@ -80,7 +63,7 @@
 
         <div class="vs-badge">🔥 HERO VS KAIJU 🔥</div>
 
-        <!-- ヒーローカード -->
+        <!-- Player Hero Card -->
         <div class="card card-player">
             <div class="card-info">
                 <div class="label" style="color: #38BDF8;">マイヒーロー</div>
@@ -91,10 +74,10 @@
             <div class="char-avatar">🦸‍♂️</div>
         </div>
 
-        <!-- バトル操作エリア -->
+        <!-- Interactive Control -->
         <div class="control-card">
             <div id="time-select-area">
-                <div class="label" style="margin-bottom: 8px; color: #94A3B8;">⏱️ たいせんじかんをえらぼう</div>
+                <div class="label" style="margin-bottom: 6px;">⏱️ たいせんじかんをえらぼう</div>
                 <div class="time-select-group">
                     <button id="btn-time-10" class="time-btn active" onclick="selectTime(10)">⚡ 10秒コース</button>
                     <button id="btn-time-20" class="time-btn" onclick="selectTime(20)">🔥 20秒コース</button>
@@ -105,9 +88,9 @@
             <button id="action-btn" class="btn" onclick="handleAction()">🚀 ヒーローバトルスタート！</button>
         </div>
 
-        <!-- 戦闘ログ -->
+        <!-- Logs -->
         <div>
-            <div class="label" style="text-align: left; margin-bottom: 6px; color: #64748B;">📜 戦闘ログ</div>
+            <div class="label" style="text-align: left; margin-bottom: 6px;">📜 戦闘ログ</div>
             <div id="logs" class="logs-box"><div>[System] バトル準備完了。</div></div>
         </div>
     </div>
@@ -116,7 +99,6 @@
         let pHP = 300, eHP = 300, round = 1, taps = 0, phase = "READY", timer = 10.0, timeLimit = 10, timerId = null;
         const roulettes = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180];
 
-        // Web Audio API で連打時の打撃音を再生
         function playWebHitSound() {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -150,11 +132,10 @@
         }
 
         function addLog(tag, msg) {
-            const logs = document.getElementById("logs");
+            const logsBox = document.getElementById("logs");
             const div = document.createElement("div");
             div.innerText = `[${tag}] ${msg}`;
-            logs.appendChild(div);
-            logs.scrollTop = logs.scrollHeight;
+            logsBox.insertBefore(div, logsBox.firstChild);
         }
 
         function handleAction() {
