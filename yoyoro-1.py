@@ -1,205 +1,267 @@
-# =========================================================
-# ヒーローVS大怪獣 バトルアリーナ (app.py)
-# 
-# 1. pip install streamlit
-# 2. streamlit run app.py
-# =========================================================
-
-import streamlit as st
-import random
-
-# --- 1. Pure State Logic ---
-class RobotBattleCore:
-    def __init__(self):
-        self.player_hp = 300
-        self.max_player_hp = 300
-        self.enemy_hp = 300
-        self.max_enemy_hp = 300
-
-        self.selected_time = 10  # 10 or 20 seconds
-        self.round_count = 1
-        self.phase = "READY"  # READY, PLAYER_ATTACK, PLAYER_RESULT, ENEMY_RESULT, GAME_OVER
-        self.tap_count = 0
-        self.last_player_damage = 0
-        self.last_enemy_damage = 0
-        self.battle_logs = ["バトル準備完了！ ヒーローVS大怪獣の対戦を開始してください。"]
-        self.roulette_numbers = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180]
-
-    def add_log(self, tag, msg):
-        self.battle_logs.insert(0, f"[{tag}] {msg}")
-
-    def tap_attack(self):
-        if self.phase == "PLAYER_ATTACK":
-            self.tap_count += 1
-
-    def finish_player_attack(self):
-        self.last_player_damage = self.tap_count * 2
-        self.enemy_hp = max(0, self.enemy_hp - self.last_player_damage)
-        self.add_log("Hero", f"ROUND {self.round_count}: {self.selected_time}秒間で {self.tap_count}連打！ 大怪獣に {self.last_player_damage} ダメージ！")
-        
-        if self.enemy_hp <= 0:
-            self.phase = "GAME_OVER"
-        else:
-            self.phase = "PLAYER_RESULT"
-
-    def execute_enemy_turn(self):
-        self.last_enemy_damage = random.choice(self.roulette_numbers)
-        self.player_hp = max(0, self.player_hp - self.last_enemy_damage)
-        self.add_log("Kaiju", f"ROUND {self.round_count}: 大怪獣の攻撃 [{self.last_enemy_damage}]！ {self.last_enemy_damage} ダメージを受けた！")
-
-        if self.player_hp <= 0:
-            self.phase = "GAME_OVER"
-        else:
-            self.phase = "ENEMY_RESULT"
-            self.round_count += 1
-
-    def reset_game(self):
-        time_limit = self.selected_time
-        self.__init__()
-        self.selected_time = time_limit
-
-# --- 2. Streamlit Custom Styled UI ---
-def main():
-    st.set_page_config(page_title="ヒーローVS大怪獣 バトルアリーナ", page_icon="🦸‍♂️", layout="centered")
-
-    # Custom Cyberpunk / Dark UI CSS
-    st.markdown('''
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ヒーロー VS 大怪獣 バトルアリーナ</title>
     <style>
-        .stApp { background-color: #0F172A !important; color: #F8FAFC; }
-        .robo-card {
-            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-            border-radius: 16px;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #0F172A;
+            color: #F8FAFC;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
             padding: 16px;
-            border: 2px solid #334155;
-            margin-bottom: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            min-height: 100vh;
         }
-        .enemy-card { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
-        .player-card { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
-        .hp-text-enemy { color: #F43F5E; font-weight: bold; font-size: 18px; }
-        .hp-text-player { color: #22C55E; font-weight: bold; font-size: 18px; }
-        .title-bar {
+        .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; }
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; }
+        .title { font-size: 18px; font-weight: 900; color: #38BDF8; letter-spacing: 1px; }
+        .round { font-size: 14px; font-weight: bold; color: #A855F7; }
+
+        .card {
             background: #1E293B;
-            border-radius: 12px;
-            padding: 12px 20px;
-            border: 1px solid #334155;
+            border-radius: 20px;
+            padding: 16px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            justify-content: space-between;
+            border: 2px solid #334155;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
-        .stButton>button {
-            border-radius: 12px !important;
-            font-weight: bold !important;
-            font-size: 18px !important;
-            padding: 12px 24px !important;
-            transition: all 0.2s !important;
-        }
-        .char-icon { font-size: 50px; text-align: center; }
+        .card-enemy { border-color: #A855F7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.25); }
+        .card-player { border-color: #38BDF8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.25); }
+        .card-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .label { font-size: 11px; font-weight: bold; letter-spacing: 1px; }
+        .name { font-size: 18px; font-weight: 900; color: #FFFFFF; }
+        
+        .hp-bar-bg { background: #0F172A; border-radius: 10px; height: 12px; overflow: hidden; margin-top: 4px; border: 1px solid #334155; }
+        .hp-bar-fill { background: linear-gradient(90deg, #38BDF8, #0284C7); height: 100%; width: 100%; transition: width 0.3s ease; }
+        .hp-enemy { background: linear-gradient(90deg, #F43F5E, #E11D48); }
+        .hp-text { font-size: 12px; font-weight: bold; }
+        
+        .char-avatar { font-size: 48px; width: 64px; text-align: center; }
+
+        .vs-badge { text-align: center; font-size: 12px; font-weight: 900; color: #64748B; letter-spacing: 2px; }
+
+        .time-select-group { display: flex; gap: 10px; margin-bottom: 8px; }
+        .time-btn { flex: 1; padding: 10px; border-radius: 12px; border: 1px solid #334155; background: #0F172A; color: #94A3B8; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .time-btn.active { background: #38BDF8; color: #0F172A; border-color: #38BDF8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+
+        .btn { background: #38BDF8; color: #0F172A; font-weight: 900; font-size: 16px; border: none; padding: 16px; border-radius: 14px; cursor: pointer; transition: transform 0.05s, background 0.2s; width: 100%; text-align: center; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3); }
+        .btn:active { transform: scale(0.96); }
+        .btn-attack { background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%); color: white; box-shadow: 0 4px 20px rgba(244, 63, 94, 0.5); font-size: 18px; }
+        
+        .control-card { background: #1E293B; border-radius: 20px; padding: 18px; border: 1px solid #334155; text-align: center; display: flex; flex-direction: column; gap: 12px; }
+        .status-msg { font-size: 16px; font-weight: bold; color: #F8FAFC; }
+        .timer-display { font-size: 24px; font-weight: 900; color: #38BDF8; margin-top: 4px; }
+
+        .logs-box { background: #020617; border-radius: 12px; padding: 12px; max-height: 140px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #CBD5E1; display: flex; flex-direction: column; gap: 6px; border: 1px solid #1E293B; }
     </style>
-    ''', unsafe_allow_html=True)
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🦸‍♂️ HERO VS KAIJU</div>
+            <div id="round-text" class="round">ROUND 1</div>
+        </div>
 
-    if "game" not in st.session_state:
-        st.session_state.game = RobotBattleCore()
+        <!-- 大怪獣カード -->
+        <div class="card card-enemy">
+            <div class="card-info">
+                <div class="label" style="color: #A855F7;">だいかいじゅう</div>
+                <div class="name">暗黒龍王 ギガガメディス</div>
+                <div class="hp-bar-bg"><div id="enemy-hp-bar" class="hp-bar-fill hp-enemy"></div></div>
+                <div id="enemy-hp-text" class="hp-text" style="color: #F43F5E;">HP: 300 / 300</div>
+            </div>
+            <div class="char-avatar">🦖</div>
+        </div>
 
-    game = st.session_state.game
+        <div class="vs-badge">🔥 HERO VS KAIJU 🔥</div>
 
-    # Title Bar
-    st.markdown(f'''
-    <div class="title-bar">
-        <span style="font-size: 20px; font-weight: bold; color: #38BDF8;">🦸‍♂️ HERO VS KAIJU BATTLE</span>
-        <span style="font-size: 16px; font-weight: bold; color: #A855F7;">ROUND {game.round_count}</span>
+        <!-- ヒーローカード -->
+        <div class="card card-player">
+            <div class="card-info">
+                <div class="label" style="color: #38BDF8;">マイヒーロー</div>
+                <div class="name">サイバーヒーロー・ブレイバー</div>
+                <div class="hp-bar-bg"><div id="player-hp-bar" class="hp-bar-fill"></div></div>
+                <div id="player-hp-text" class="hp-text" style="color: #22C55E;">HP: 300 / 300</div>
+            </div>
+            <div class="char-avatar">🦸‍♂️</div>
+        </div>
+
+        <!-- バトル操作エリア -->
+        <div class="control-card">
+            <div id="time-select-area">
+                <div class="label" style="margin-bottom: 8px; color: #94A3B8;">⏱️ たいせんじかんをえらぼう</div>
+                <div class="time-select-group">
+                    <button id="btn-time-10" class="time-btn active" onclick="selectTime(10)">⚡ 10秒コース</button>
+                    <button id="btn-time-20" class="time-btn" onclick="selectTime(20)">🔥 20秒コース</button>
+                </div>
+            </div>
+            <div id="status-text" class="status-msg">対戦を開始してください</div>
+            <div id="timer-text" class="timer-display" style="display: none;">のこりじかん: 10.0秒</div>
+            <button id="action-btn" class="btn" onclick="handleAction()">🚀 ヒーローバトルスタート！</button>
+        </div>
+
+        <!-- 戦闘ログ -->
+        <div>
+            <div class="label" style="text-align: left; margin-bottom: 6px; color: #64748B;">📜 戦闘ログ</div>
+            <div id="logs" class="logs-box"><div>[System] バトル準備完了。</div></div>
+        </div>
     </div>
-    ''', unsafe_allow_html=True)
 
-    # Robot Cards Area (Enemy Kaiju Top, Player Hero Bottom)
-    col_e1, col_e2 = st.columns([3, 1])
-    with col_e1:
-        st.markdown(f'''
-        <div class="robo-card enemy-card">
-            <div>
-                <div style="font-size: 12px; color: #A855F7; font-weight: bold;">だいかいじゅう</div>
-                <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">大怪獣 ギガガメディス</div>
-                <div class="hp-text-enemy">HP {game.enemy_hp} / {game.max_enemy_hp}</div>
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
-        st.progress(game.enemy_hp / game.max_enemy_hp)
-    with col_e2:
-        st.markdown('<div class="char-icon">🦖</div>', unsafe_allow_html=True)
+    <script>
+        let pHP = 300, eHP = 300, round = 1, taps = 0, phase = "READY", timer = 10.0, timeLimit = 10, timerId = null;
+        const roulettes = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180];
 
-    st.markdown("<div style='text-align: center; font-weight: bold; color: #64748B; margin: 8px 0;'>🔥 HERO VS KAIJU 🔥</div>", unsafe_allow_html=True)
+        // Web Audio API で連打時の打撃音を再生
+        function playWebHitSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.08);
+            } catch (e) {}
+        }
 
-    col_p1, col_p2 = st.columns([3, 1])
-    with col_p1:
-        st.markdown(f'''
-        <div class="robo-card player-card">
-            <div>
-                <div style="font-size: 12px; color: #38BDF8; font-weight: bold;">マイヒーロー</div>
-                <div style="font-size: 20px; font-weight: bold; color: #FFFFFF;">サイバーヒーロー・ブレイバー</div>
-                <div class="hp-text-player">HP {game.player_hp} / {game.max_player_hp}</div>
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
-        st.progress(game.player_hp / game.max_player_hp)
-    with col_p2:
-        st.markdown('<div class="char-icon">🦸‍♂️</div>', unsafe_allow_html=True)
+        function selectTime(sec) {
+            if (phase !== "READY") return;
+            timeLimit = sec;
+            document.getElementById("btn-time-10").className = sec === 10 ? "time-btn active" : "time-btn";
+            document.getElementById("btn-time-20").className = sec === 20 ? "time-btn active" : "time-btn";
+        }
 
-    st.divider()
+        function updateUI() {
+            document.getElementById("round-text").innerText = `ROUND ${round}`;
+            document.getElementById("player-hp-bar").style.width = (pHP / 300 * 100) + "%";
+            document.getElementById("enemy-hp-bar").style.width = (eHP / 300 * 100) + "%";
+            document.getElementById("player-hp-text").innerText = `HP: ${pHP} / 300`;
+            document.getElementById("enemy-hp-text").innerText = `HP: ${eHP} / 300`;
+        }
 
-    # Dynamic Battle Action Controls
-    if game.phase == "READY":
-        st.subheader("⏱️ 対戦時間を選んでバトルスタート！")
-        selected_time = st.radio("制限時間を選択してください", [10, 20], index=0 if game.selected_time == 10 else 1, format_func=lambda x: f"⚡ {x}秒コース", horizontal=True)
-        game.selected_time = selected_time
+        function addLog(tag, msg) {
+            const logs = document.getElementById("logs");
+            const div = document.createElement("div");
+            div.innerText = `[${tag}] ${msg}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
 
-        if st.button(f"🚀 バトルスタート ({game.selected_time}秒連打)", use_container_width=True, type="primary"):
-            game.phase = "PLAYER_ATTACK"
-            game.tap_count = 0
-            st.rerun()
+        function handleAction() {
+            const btn = document.getElementById("action-btn");
+            const st = document.getElementById("status-text");
+            const timerTxt = document.getElementById("timer-text");
+            const timeArea = document.getElementById("time-select-area");
 
-    elif game.phase == "PLAYER_ATTACK":
-        st.warning(f"🔥 {game.selected_time}秒間 ヒーロー連打アタック！ ボタンを押しまくれ！")
-        if st.button("💥 ヒーロービームアタック！ (+1)", use_container_width=True):
-            game.tap_attack()
+            if (phase === "READY" || phase === "GAME_OVER") {
+                if (phase === "GAME_OVER") { pHP = 300; eHP = 300; round = 1; }
+                taps = 0; phase = "PLAYER_ATTACK"; timer = timeLimit;
+                updateUI();
+                timeArea.style.display = "none";
+                timerTxt.style.display = "block";
+                btn.className = "btn btn-attack";
+                btn.innerText = "💥 ヒーロービームアタック！ (連打！)";
+                st.innerText = "🔥 ボタンを連打して大怪獣をたおせ！";
+                
+                if (timerId) clearInterval(timerId);
+                timerId = setInterval(() => {
+                    timer -= 0.1;
+                    if (timer <= 0) {
+                        timer = 0;
+                        clearInterval(timerId);
+                        finishPlayerAttack();
+                    } else {
+                        timerTxt.innerText = `のこりじかん: ${timer.toFixed(1)}秒 | 連打数: ${taps}`;
+                    }
+                }, 100);
+            } else if (phase === "PLAYER_ATTACK") {
+                if (timer > 0) {
+                    taps++;
+                    playWebHitSound();
+                    timerTxt.innerText = `のこりじかん: ${Math.max(0, timer).toFixed(1)}秒 | 連打数: ${taps}`;
+                }
+            } else if (phase === "PLAYER_RESULT") {
+                executeEnemyTurn();
+            } else if (phase === "ENEMY_RESULT") {
+                phase = "PLAYER_ATTACK";
+                taps = 0; timer = timeLimit;
+                btn.className = "btn btn-attack";
+                btn.innerText = "💥 ヒーロービームアタック！ (連打！)";
+                st.innerText = "🔥 ボタンを連打して大怪獣をたおせ！";
+                timerTxt.style.display = "block";
+                if (timerId) clearInterval(timerId);
+                timerId = setInterval(() => {
+                    timer -= 0.1;
+                    if (timer <= 0) {
+                        timer = 0;
+                        clearInterval(timerId);
+                        finishPlayerAttack();
+                    } else {
+                        timerTxt.innerText = `のこりじかん: ${timer.toFixed(1)}秒 | 連打数: ${taps}`;
+                    }
+                }, 100);
+            }
+        }
 
-        st.metric("現在の連打数", f"{game.tap_count} 回", f"与ダメージ: {game.tap_count * 2}")
+        function finishPlayerAttack() {
+            const btn = document.getElementById("action-btn");
+            const st = document.getElementById("status-text");
+            const timerTxt = document.getElementById("timer-text");
 
-        if st.button("⏱️ 攻撃確定 (ターン終了)", use_container_width=True, type="primary"):
-            game.finish_player_attack()
-            st.rerun()
+            const damage = taps * 2;
+            eHP = Math.max(0, eHP - damage);
+            updateUI();
+            addLog("Hero", `ROUND ${round}: ${timeLimit}秒間で ${taps}連打！ 大怪獣に ${damage} ダメージ！`);
 
-    elif game.phase == "PLAYER_RESULT":
-        st.success(f"💥 攻撃完了！ {game.last_player_damage} ダメージを与えた！")
-        if st.button("次へ (大怪獣のターン)", use_container_width=True):
-            game.execute_enemy_turn()
-            st.rerun()
+            timerTxt.style.display = "none";
 
-    elif game.phase == "ENEMY_RESULT":
-        st.error(f"⚡ 大怪獣のこうげき！ {game.last_enemy_damage} ダメージを受けた！")
-        if st.button("次へ (ヒーローのターン)", use_container_width=True):
-            game.phase = "PLAYER_ATTACK"
-            game.tap_count = 0
-            st.rerun()
+            if (eHP <= 0) {
+                phase = "GAME_OVER";
+                st.innerText = "🎉 WINNER! 大怪獣『ギガガメディス』を撃退した！";
+                btn.className = "btn";
+                btn.innerText = "🔄 もう一度対戦する";
+                document.getElementById("time-select-area").style.display = "block";
+            } else {
+                phase = "PLAYER_RESULT";
+                st.innerText = `💥 ヒーロー攻撃完了！ ${damage} ダメージを与えた！`;
+                btn.className = "btn";
+                btn.innerText = "次へ (大怪獣のターン)";
+            }
+        }
 
-    elif game.phase == "GAME_OVER":
-        if game.player_hp > 0:
-            st.balloons()
-            st.success("🎉 WINNER! 大怪獣『ギガガメディス』を撃退した！")
-        else:
-            st.error("💥 GAME OVER... 超ヒーロー・ブレイバー倒れる")
+        function executeEnemyTurn() {
+            const btn = document.getElementById("action-btn");
+            const st = document.getElementById("status-text");
 
-        if st.button("🔄 もう一度対戦する", use_container_width=True, type="primary"):
-            game.reset_game()
-            st.rerun()
+            const damage = roulettes[Math.floor(Math.random() * roulettes.length)];
+            pHP = Math.max(0, pHP - damage);
+            updateUI();
+            addLog("Kaiju", `ROUND ${round}: 大怪獣の攻撃 [${damage}]！ ${damage} 被ダメージ！`);
 
-    st.divider()
-    st.caption("📜 戦闘ログ")
-    for log in game.battle_logs[:6]:
-        st.code(log, language="text")
-
-if __name__ == "__main__":
-    main()
+            if (pHP <= 0) {
+                phase = "GAME_OVER";
+                st.innerText = "💥 GAME OVER... 超ヒーロー・ブレイバー倒れる";
+                btn.className = "btn";
+                btn.innerText = "🔄 もう一度対戦する";
+                document.getElementById("time-select-area").style.display = "block";
+            } else {
+                phase = "ENEMY_RESULT";
+                round++;
+                st.innerText = `⚡ 大怪獣のルーレット攻撃！ ${damage} ダメージを受けた！`;
+                btn.className = "btn";
+                btn.innerText = "次へ (ヒーローのターン)";
+            }
+        }
+    </script>
+</body>
+</html>
