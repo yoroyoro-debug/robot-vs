@@ -15,8 +15,6 @@ st.set_page_config(
     page_icon="🦖",
     layout="centered"
 )
-streamlit run app.py
-
 
 st.title("🦖 オリジナル怪獣 画像ジェネレーター")
 st.write("Gemini / Imagen APIを使用して、あなただけのオリジナル怪獣を生成・表示します。")
