@@ -4,14 +4,19 @@ from PIL import Image
 import streamlit as st
 import google.generativeai as genai
 
+
 # ==========================================
 # 1. ページ設定とタイトル
 # ==========================================
+
+pip install streamlit google-generativeai pillow
 st.set_page_config(
     page_title="怪獣画像ジェネレーター (Streamlit + Gemini API)",
     page_icon="🦖",
     layout="centered"
 )
+streamlit run app.py
+
 
 st.title("🦖 オリジナル怪獣 画像ジェネレーター")
 st.write("Gemini / Imagen APIを使用して、あなただけのオリジナル怪獣を生成・表示します。")
